@@ -28,7 +28,15 @@ class OverlayView(context: Context?, attrs: AttributeSet?) : View(context, attrs
     private var postScaleHeightOffset: Float = 0f
 
     var showGuide: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
     var currentSwingView: SwingView = SwingView.FACE_ON
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private val leftHandHistory = LinkedList<Pair<Float, Float>>()
     private val rightHandHistory = LinkedList<Pair<Float, Float>>()
