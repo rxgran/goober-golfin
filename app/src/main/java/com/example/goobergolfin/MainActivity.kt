@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
                             confirmButton = {
                                 Button(onClick = {
                                     if (newUserName.isNotBlank()) {
-                                        userList = userList + newUserName
+                                        userList += newUserName
                                         currentUser = newUserName
                                     }
                                     showAddUserDialog = false
@@ -330,7 +330,7 @@ fun LogDialog(
     var ballSpeed by remember { mutableStateOf(initialEntry.ballSpeed) }
     var swingSpeed by remember { mutableStateOf(initialEntry.swingSpeed) }
     var spin by remember { mutableStateOf(initialEntry.spin) }
-    var accuracySide by remember { mutableStateOf(if(initialEntry.accSide.isEmpty()) "Center" else initialEntry.accSide) }
+    var accuracySide by remember { mutableStateOf(initialEntry.accSide.ifEmpty { "Center" }) }
     var accuracyDist by remember { mutableStateOf(initialEntry.accDist) }
     var selectedShape by remember { mutableStateOf(initialEntry.shotShape) }
     var selectedContact by remember { mutableStateOf(initialEntry.contact) }
