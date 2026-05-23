@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
                                 club = lastClubUsed,
                                 metrics = metrics,
                                 carry = "", total = "", apex = "", ballSpeed = "",
-                                swingSpeed = "", spin = "", accuracy = "",
+                                swingSpeed = "", spin = "", accSide = "", accDist = "",
                                 shotShape = "Straight", contact = "Solid"
                             )
                             activeLogItem = newEntry
@@ -330,12 +330,15 @@ fun LogDialog(
     var ballSpeed by remember { mutableStateOf(initialEntry.ballSpeed) }
     var swingSpeed by remember { mutableStateOf(initialEntry.swingSpeed) }
     var spin by remember { mutableStateOf(initialEntry.spin) }
-    var accuracy by remember { mutableStateOf(initialEntry.accuracy) }
+    var accuracySide by remember { mutableStateOf(if(initialEntry.accSide.isEmpty()) "Center" else initialEntry.accSide) }
+    var accuracyDist by remember { mutableStateOf(initialEntry.accDist) }
     var selectedShape by remember { mutableStateOf(initialEntry.shotShape) }
     var selectedContact by remember { mutableStateOf(initialEntry.contact) }
 
     val contacts = listOf("Top", "Sky", "Solid")
     val clubs = listOf("DR", "3W", "5W", "7W", "4H", "5H", "4I", "5I", "6I", "7I", "8I", "9I", "PW", "GW", "SW", "LW", "Put")
+    val sides = listOf("Left", "Center", "Right")
+    
     var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -350,7 +353,7 @@ fun LogDialog(
         },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // Display AI Metrics for review
+                // ... (AI card remains same)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
@@ -406,11 +409,40 @@ fun LogDialog(
                     Spacer(Modifier.width(8.dp))
                     OutlinedTextField(value = total, onValueChange = { total = it }, label = { Text("Total") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
+
+                Spacer(Modifier.height(8.dp))
+                Column {
+                    Text("Accuracy Side:", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        sides.forEach { side ->
+                            FilterChip(
+                                selected = accuracySide == side,
+                                onClick = { accuracySide = side },
+                                label = { Text(side, fontSize = 10.sp) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = apex, onValueChange = { apex = it }, label = { Text("Apex") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(value = accuracy, onValueChange = { accuracy = it }, label = { Text("L/R Offset") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = accuracyDist,
+                        onValueChange = { accuracyDist = it },
+                        label = { Text("Offset (Yards)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        enabled = accuracySide != "Center"
+                    )
                 }
+
+                Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
                     OutlinedTextField(value = ballSpeed, onValueChange = { ballSpeed = it }, label = { Text("Ball Spd") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     Spacer(Modifier.width(8.dp))
@@ -436,7 +468,8 @@ fun LogDialog(
                 onSave(initialEntry.copy(
                     club = club, carry = carry, total = total, apex = apex,
                     ballSpeed = ballSpeed, swingSpeed = swingSpeed, spin = spin,
-                    accuracy = accuracy, shotShape = selectedShape, contact = selectedContact
+                    accSide = accuracySide, accDist = accuracyDist,
+                    shotShape = selectedShape, contact = selectedContact
                 )) 
             }) { Text("Save") }
         },
@@ -445,6 +478,7 @@ fun LogDialog(
         }
     )
 }
+
 
 @Composable
 fun ViewToggleBar(currentView: SwingView, onViewSelected: (SwingView) -> Unit) {

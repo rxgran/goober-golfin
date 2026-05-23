@@ -24,7 +24,8 @@ data class LoggedSwing(
     val ballSpeed: String,
     val swingSpeed: String,
     val spin: String,
-    val accuracy: String,
+    val accSide: String,
+    val accDist: String,
     val shotShape: String,
     val contact: String
 )
@@ -42,7 +43,7 @@ class DataLogHelper(val context: Context) {
             val out = FileOutputStream(file, false) 
             
             var header = "ID,Timestamp,User,Mode,Club,Tempo,Backswing_ms,Downswing_ms,Head_Movement,Hip_Stability,Hip_Turn,Foot_Stability," +
-                        "Carry_Distance,Total_Distance,Apex_Height,Ball_Speed,Swing_Speed,Spin,Accuracy,Shot_Shape,Contact_Quality"
+                        "Carry_Distance,Total_Distance,Apex_Height,Ball_Speed,Swing_Speed,Spin,Accuracy_Side,Accuracy_Dist,Shot_Shape,Contact_Quality"
             
             val moments = listOf("Address", "Top", "Impact")
             for (moment in moments) {
@@ -56,11 +57,12 @@ class DataLogHelper(val context: Context) {
             for (item in swings) {
                 val mode = if (item.metrics.isFaceOn) "Face-On" else "DTL"
                 var row = String.format(Locale.US, 
-                    "%s,%s,%s,%s,%s,%.2f,%d,%d,%.3f,%.3f,%.3f,%.3f,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+                    "%s,%s,%s,%s,%s,%.2f,%d,%d,%.3f,%.3f,%.3f,%.3f,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
                     item.metrics.id, item.timestamp, item.user, mode, item.club, 
                     item.metrics.tempo, item.metrics.backswingMs, item.metrics.downswingMs,
                     item.metrics.headMovement, item.metrics.hipStability, item.metrics.hipTurn, item.metrics.footStability,
-                    item.carry, item.total, item.apex, item.ballSpeed, item.swingSpeed, item.spin, item.accuracy, item.shotShape, item.contact
+                    item.carry, item.total, item.apex, item.ballSpeed, item.swingSpeed, item.spin, 
+                    item.accSide, item.accDist, item.shotShape, item.contact
                 )
 
                 val snapshots = listOf(item.metrics.addressPose, item.metrics.topPose, item.metrics.impactPose)
@@ -103,7 +105,6 @@ class DataLogHelper(val context: Context) {
             val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
             } else {
-                // Fallback for older versions if needed
                 null
             }
 
@@ -119,6 +120,30 @@ class DataLogHelper(val context: Context) {
             }
         } catch (e: Exception) {
             Toast.makeText(context, "Export Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    fun shareCSV() {
+        val folder = context.getExternalFilesDir(null)
+        val file = File(folder, fileName)
+        if (!file.exists()) {
+            Toast.makeText(context, "No data collected yet!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        try {
+            val uri = FileProvider.getUriForFile(context, "com.example.goobergolfin.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newRawUri("Swing Data", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val chooser = Intent.createChooser(intent, "Share Swing Data")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(chooser)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Share failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }
