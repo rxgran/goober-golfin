@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
@@ -33,7 +34,9 @@ class PoseLandmarkerHelper(
     fun setupPoseLandmarker() {
         val baseOptionBuilder = BaseOptions.builder()
         baseOptionBuilder.setModelAssetPath("pose_landmarker.task")
-        baseOptionBuilder.setDelegate(Delegate.GPU)
+        
+        // Use CPU by default for stability, or GPU if preferred
+        baseOptionBuilder.setDelegate(Delegate.CPU)
 
         try {
             val optionsBuilder = PoseLandmarker.PoseLandmarkerOptions.builder()
@@ -51,7 +54,9 @@ class PoseLandmarkerHelper(
 
             poseLandmarker = PoseLandmarker.createFromOptions(context, optionsBuilder.build())
         } catch (e: Exception) {
-            poseLandmarkerHelperListener?.onError("Pose landmarker failed to initialize: ${e.message}")
+            val error = "Pose landmarker failed to initialize: ${e.message}"
+            Log.e("PoseLandmarkerHelper", error)
+            poseLandmarkerHelperListener?.onError(error)
         }
     }
 
@@ -74,6 +79,11 @@ class PoseLandmarkerHelper(
             bitmap, 0, 0, bitmap.width, bitmap.height,
             matrix, true
         )
+        
+        // Recycle the original bitmap if it's different from the rotated one
+        if (rotatedBitmap != bitmap) {
+            bitmap.recycle()
+        }
 
         val mpImage = BitmapImageBuilder(rotatedBitmap).build()
 
@@ -83,6 +93,8 @@ class PoseLandmarkerHelper(
 
     private fun detectAsync(mpImage: MPImage, frameTime: Long) {
         poseLandmarker?.detectAsync(mpImage, frameTime)
+        // Note: In LIVE_STREAM mode, we don't recycle the bitmap here 
+        // because it's used asynchronously by MediaPipe.
     }
 
     private fun returnLivestreamResult(
@@ -103,8 +115,15 @@ class PoseLandmarkerHelper(
     }
 
     private fun returnLivestreamError(error: RuntimeException) {
+        Log.e("PoseLandmarkerHelper", "MediaPipe Error: ${error.message}")
         poseLandmarkerHelperListener?.onError(error.message ?: "An unknown error has occurred")
     }
+
+    fun clearPoseLandmarker() {
+        poseLandmarker?.close()
+        poseLandmarker = null
+    }
+
 
     data class ResultBundle(
         val results: List<PoseLandmarkerResult>,
