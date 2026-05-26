@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,10 +32,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +79,7 @@ class MainActivity : ComponentActivity() {
                 
                 val context = LocalContext.current
                 val logger = remember { DataLogHelper(context) }
+                
                 var activeLogItem by remember { mutableStateOf<LoggedSwing?>(null) }
                 var lastClubUsed by remember { mutableStateOf("") }
 
@@ -103,19 +108,22 @@ class MainActivity : ComponentActivity() {
                         onToggleGuide = { showGuide = !showGuide },
                         onExport = { logger.exportToDownloads() },
                         onSwingDetected = { metrics ->
-                            val newEntry = LoggedSwing(
-                                timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()),
-                                user = currentUser,
-                                club = lastClubUsed,
-                                metrics = metrics,
-                                carry = "", total = "", apex = "", ballSpeed = "",
-                                swingSpeed = "", spin = "", accSide = "", accDist = "",
-                                shotShape = "Straight", contact = "Solid"
-                            )
-                            activeLogItem = newEntry
+                            // FIX: Only accept a new swing if we aren't already logging one
+                            if (activeLogItem == null) {
+                                val newEntry = LoggedSwing(
+                                    timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()),
+                                    user = currentUser,
+                                    club = lastClubUsed,
+                                    metrics = metrics,
+                                    carry = "", total = "", apex = "", ballSpeed = "",
+                                    swingSpeed = "", spin = "", accSide = "", accDist = "",
+                                    shotShape = "Straight", contact = "Solid"
+                                )
+                                activeLogItem = newEntry
+                            }
                         },
                         onStateChanged = { currentState = it },
-                        onResetHistory = { sessionHistory.clear(); logger.saveSession(emptyList()) },
+                        onResetHistory = { sessionHistory.clear(); logger.saveSession(sessionHistory.toList()) },
                         onEditItem = { activeLogItem = it },
                         modifier = Modifier.padding(innerPadding)
                     )
@@ -334,6 +342,7 @@ fun LogDialog(
     var accuracyDist by remember { mutableStateOf(initialEntry.accDist) }
     var selectedShape by remember { mutableStateOf(initialEntry.shotShape) }
     var selectedContact by remember { mutableStateOf(initialEntry.contact) }
+    val focusManager = LocalFocusManager.current
 
     val contacts = listOf("Top", "Sky", "Solid")
     val clubs = listOf("DR", "3W", "5W", "7W", "4H", "5H", "4I", "5I", "6I", "7I", "8I", "9I", "PW", "GW", "SW", "LW", "Put")
@@ -353,7 +362,6 @@ fun LogDialog(
         },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                // ... (AI card remains same)
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
@@ -385,7 +393,9 @@ fun LogDialog(
                         label = { Text("Club") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true).fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { expanded = true })
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -405,9 +415,23 @@ fun LogDialog(
                 
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = carry, onValueChange = { carry = it }, label = { Text("Carry") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = carry,
+                        onValueChange = { carry = it },
+                        label = { Text("Carry") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Right) })
+                    )
                     Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(value = total, onValueChange = { total = it }, label = { Text("Total") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = total,
+                        onValueChange = { total = it },
+                        label = { Text("Total") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) })
+                    )
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -430,25 +454,54 @@ fun LogDialog(
                 
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = apex, onValueChange = { apex = it }, label = { Text("Apex") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = apex,
+                        onValueChange = { apex = it },
+                        label = { Text("Apex") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Right) })
+                    )
                     Spacer(Modifier.width(8.dp))
                     OutlinedTextField(
                         value = accuracyDist,
                         onValueChange = { accuracyDist = it },
                         label = { Text("Offset (Yards)") },
                         modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        enabled = accuracySide != "Center"
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        enabled = accuracySide != "Center",
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) })
                     )
                 }
 
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = ballSpeed, onValueChange = { ballSpeed = it }, label = { Text("Ball Spd") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = ballSpeed,
+                        onValueChange = { ballSpeed = it },
+                        label = { Text("Ball Spd") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Right) })
+                    )
                     Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(value = swingSpeed, onValueChange = { swingSpeed = it }, label = { Text("Swing Spd") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(
+                        value = swingSpeed,
+                        onValueChange = { swingSpeed = it },
+                        label = { Text("Swing Spd") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) })
+                    )
                 }
-                OutlinedTextField(value = spin, onValueChange = { spin = it }, label = { Text("Spin (RPM)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(
+                    value = spin,
+                    onValueChange = { spin = it },
+                    label = { Text("Spin (RPM)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                )
                 
                 Spacer(Modifier.height(16.dp))
                 Text("Shot Shape:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -478,7 +531,6 @@ fun LogDialog(
         }
     )
 }
-
 
 @Composable
 fun ViewToggleBar(currentView: SwingView, onViewSelected: (SwingView) -> Unit) {
